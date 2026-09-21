@@ -3,7 +3,7 @@ Build a self-contained HTML dashboard from data/audit_log.jsonl.
 
 All numbers in the dashboard are computed directly from the real Jev API
 responses captured by pipeline/triage.py -- nothing here is fabricated or
-copied from vendor marketing. Anywhere a TypeSafe-published figure is shown
+copied from TypeSafe's marketing. Anywhere a TypeSafe-published figure is shown
 for context, it is explicitly labeled "reported by TypeSafe, not measured
 by us" with a source link.
 """
@@ -152,7 +152,7 @@ def render_heatmap(conf: dict) -> str:
     width = label_col_w + len(ROUTE_ORDER) * (cell_w + gap)
     height = label_row_h + len(TIER_ORDER) * (cell_h + gap)
 
-    svg_parts = [f'<svg viewBox="0 0 {width} {height}" class="heatmap-svg" role="img" aria-label="Confusion matrix of ground-truth tier versus Jev routing decision">']
+    svg_parts = [f'<svg viewBox="0 0 {width} {height}" class="heatmap-svg" role="img" aria-label="Grid comparing what we knew to be true about each request against what Jev decided to do with it">']
 
     for ci, route in enumerate(ROUTE_ORDER):
         x = label_col_w + ci * (cell_w + gap) + cell_w / 2
@@ -191,16 +191,16 @@ def render_dot_plot(points: list[dict]) -> str:
 
     band_w = plot_w / len(TIER_ORDER)
 
-    svg_parts = [f'<svg viewBox="0 0 {width} {height}" class="dotplot-svg" role="img" aria-label="Meets-medical-necessity probability by ground-truth tier">']
+    svg_parts = [f'<svg viewBox="0 0 {width} {height}" class="dotplot-svg" role="img" aria-label="How likely Jev thought each request was to qualify, grouped by what we knew to be true">']
 
-    # gridlines + y-axis ticks at 0, .25, .5, .75, 1
+    # gridlines + y-axis ticks at 0, .25, .5, .75, 1 -- shown as plain percentages
     for tick in [0, 0.25, 0.5, 0.75, 1.0]:
         y = margin["top"] + plot_h * (1 - tick)
         svg_parts.append(
             f'<line x1="{margin["left"]}" y1="{y}" x2="{width - margin["right"]}" y2="{y}" class="gridline"/>'
         )
         svg_parts.append(
-            f'<text x="{margin["left"] - 10}" y="{y + 4}" text-anchor="end" class="axis-tick">{tick:.2f}</text>'
+            f'<text x="{margin["left"] - 10}" y="{y + 4}" text-anchor="end" class="axis-tick">{tick*100:.0f}%</text>'
         )
 
     # baseline
@@ -223,11 +223,11 @@ def render_dot_plot(points: list[dict]) -> str:
         r = 5 if not p["is_lowest_confidence"] else 7
         cls = "dot-outlier" if p["is_lowest_confidence"] else f'dot-tier-{i}'
         tooltip = (
-            f'{p["request_id"]}: meets-necessity {p["noul"]:.2f}, routed to '
-            f'{ROUTE_LABELS[p["routing_decision"]]} (confidence {p["routing_confidence"]:.2f})'
+            f'{p["request_id"]}: {p["noul"]*100:.0f}% likely to qualify, routed to '
+            f'{ROUTE_LABELS[p["routing_decision"]]} ({p["routing_confidence"]*100:.0f}% confidence)'
         )
         if p["is_lowest_confidence"]:
-            tooltip += " — lowest routing confidence in the whole batch"
+            tooltip += " — lowest confidence of any decision in this batch"
         svg_parts.append(
             f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r}" class="dot {cls}" data-tooltip="{tooltip}"/>'
         )
@@ -407,23 +407,23 @@ TEMPLATE = """<!doctype html>
   </div>
 
   <div class="kpi-row">
-    <div class="kpi"><div class="value">{n}</div><div class="label">Synthetic PA requests triaged</div></div>
-    <div class="kpi"><div class="value">{p50} ms</div><div class="label">Median (p50) latency, measured</div></div>
-    <div class="kpi"><div class="value">{p95} ms</div><div class="label">p95 latency, measured</div></div>
-    <div class="kpi"><div class="value">${cost}</div><div class="label">Total cost for the batch ({total_input_tokens} input tokens)</div></div>
+    <div class="kpi"><div class="value">{n}</div><div class="label">Synthetic prior-auth requests processed</div></div>
+    <div class="kpi"><div class="value">{p50} ms</div><div class="label">Typical response time (half were faster than this)</div></div>
+    <div class="kpi"><div class="value">{p95} ms</div><div class="label">Slowest response time for 19 out of 20 requests</div></div>
+    <div class="kpi"><div class="value">${cost}</div><div class="label">Total cost for all {n} requests</div></div>
     <div class="kpi good"><div class="value">{unsafe} / {not_meet_total}</div><div class="label">Clearly non-qualifying requests auto-approved (lower is better)</div></div>
-    <div class="kpi"><div class="value">{urgency_mismatch_pct}%</div><div class="label">Requests where Jev's urgency assessment disagreed with the submitter's self-claimed urgency</div></div>
+    <div class="kpi"><div class="value">{urgency_mismatch_pct}%</div><div class="label">Requests where Jev's urgency read didn't match what the provider claimed</div></div>
   </div>
 
   <section>
     <h2>Did routing match reality?</h2>
-    <p class="caption">Rows are the synthetic ground truth our policy engine assigned when generating each request (never shown to Jev). Columns are Jev's routing decision. A well-behaved triage system should cluster along the diagonal — and critically, put zero weight in the bottom-left cell (clearly-non-qualifying requests auto-approved).</p>
+    <p class="caption">Rows show what we already knew to be true about each request when we created it (Jev never sees this — it only sees what a real reviewer would). Columns show what Jev actually decided to do with it. A good system should mostly line up row-to-column — and it's especially important that the bottom-left box stays at zero, since that would mean a request that clearly shouldn't be approved got auto-approved anyway.</p>
     <div class="chart-card">{heatmap_svg}</div>
   </section>
 
   <section>
-    <h2>Is the confidence calibrated?</h2>
-    <p class="caption">Each dot is one request: Jev's "meets medical necessity" probability, grouped by our synthetic ground-truth tier. The orange dot is the single lowest routing-confidence decision (0.24) in the entire batch — it also happens to be the one borderline case that got auto-approved. A confidence threshold around 0.3 would have caught it and routed it to a human instead.</p>
+    <h2>Does Jev know when it's unsure?</h2>
+    <p class="caption">Each dot is one request, showing how likely Jev thought it was to qualify, grouped by what we already knew to be true when we created it. The orange dot had the lowest confidence score of any of the 150 decisions — and it's also the one borderline case that got auto-approved when it probably shouldn't have. In other words, Jev's own uncertainty pointed straight at the one case worth double-checking.</p>
     <div class="legend">
       <span class="legend-item"><span class="legend-swatch" style="background:var(--tier-0)"></span>Clearly meets criteria</span>
       <span class="legend-item"><span class="legend-swatch" style="background:var(--tier-1)"></span>Borderline</span>
@@ -435,19 +435,19 @@ TEMPLATE = """<!doctype html>
 
   <section>
     <h2>By procedure type</h2>
-    <p class="caption">Table view of the same run, broken out by procedure category — the accessible/data-table alternative to the charts above.</p>
+    <p class="caption">The same results as a plain table, broken out by procedure type — useful if you'd rather scan numbers than read charts.</p>
     <div class="chart-card">
       <table>
-        <thead><tr><th>Procedure</th><th class="num">n</th><th class="num">Avg latency</th><th class="num">Auto-approve</th><th class="num">Pend review</th><th class="num">Peer-to-peer</th></tr></thead>
+        <thead><tr><th>Procedure</th><th class="num">Requests</th><th class="num">Avg response time</th><th class="num">Auto-approve</th><th class="num">Pend review</th><th class="num">Peer-to-peer</th></tr></thead>
         <tbody>{category_rows}</tbody>
       </table>
     </div>
   </section>
 
   <section>
-    <h2>Context: vendor-published figures</h2>
+    <h2>Context: what TypeSafe claims vs. what we measured</h2>
     <div class="callout">
-      The numbers above are all measured directly from our own pipeline run against the live Jev API — nothing here is copied from marketing material. For context only, TypeSafe AI's own launch materials report Jev latency in the 70–500ms range and claim up to ~193.6× faster / ~444.6× cheaper workflows versus comparable LLMs, with input priced at $0.042 per million tokens and output free. <strong>These are the vendor's reported figures, not independently verified by this project</strong> — see <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev" target="_blank" rel="noopener">typesafe.ai/blog/introducing-system-one-models-and-jev</a>. Our own measured p50/p95 above are broadly consistent with that range.
+      Everything above comes from our own pipeline run against the live Jev API — none of it is copied from marketing material. For context only, TypeSafe AI's own launch materials claim Jev is dramatically faster and cheaper than comparable AI models, and priced low enough that — as shown above — running all 150 requests in this test cost under half a cent. <strong>That framing is TypeSafe's own claim, not independently verified by this project</strong> — see <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev" target="_blank" rel="noopener">typesafe.ai/blog/introducing-system-one-models-and-jev</a>. Our own measured response times above are broadly consistent with what they report.
     </div>
   </section>
 
