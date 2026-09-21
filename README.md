@@ -94,7 +94,3 @@ All numbers below are measured directly from our own pipeline run against the li
 - The 7 policies in `policy/policies.py` are simplified, illustrative approximations of how real payer medical policy is structured (InterQual/MCG-style), written for this demo — **not** real policy documents from any payer.
 - This is a proof of concept, not a validated system. It has not been clinically reviewed, has no regulatory approval, and must not be used for real coverage or clinical decisions.
 - Vendor-reported performance figures (latency range, cost multipliers) shown in the dashboard are clearly labeled as TypeSafe's own published claims, distinct from the numbers we measured ourselves.
-
-## Related work
-
-This project is a focused companion to an earlier, broader health-insurance data platform project (Airflow + dbt + Spark claims lake) — kept separate here to stay lean enough to actually ship.
