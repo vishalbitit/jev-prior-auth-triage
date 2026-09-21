@@ -2,7 +2,7 @@
 
 A proof of concept: using [TypeSafe AI's Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) — a "System One" decision model, not an LLM — to triage prior-authorization (PA) requests in a payer utilization-management pipeline.
 
-**[→ Live results dashboard](https://claude.ai/code/artifact/eb46f18d-aaff-4dd8-a644-63a4bb0935c4)**
+**[→ Live results dashboard](https://vishalbitit.github.io/jev-prior-auth-triage/)**
 
 > Synthetic data only. No real patients, members, claims, or payer policy documents were used anywhere in this project. This is an illustrative proof of concept, not a validated clinical or coverage decision system — see [Disclaimers](#disclaimers).
 
@@ -80,7 +80,7 @@ python -m analysis.build_report       # writes analysis/output/dashboard.html
 
 ## Results (from a real run, 150 requests)
 
-All numbers below are measured directly from our own pipeline run against the live Jev API — see the [dashboard](https://claude.ai/code/artifact/eb46f18d-aaff-4dd8-a644-63a4bb0935c4) for the interactive version.
+All numbers below are measured directly from our own pipeline run against the live Jev API — see the [dashboard](https://vishalbitit.github.io/jev-prior-auth-triage/) for the interactive version.
 
 - **Latency:** p50 362.5ms, p95 434.9ms for a call that answers *three* typed questions at once.
 - **Cost:** $0.0049 total for all 150 triage decisions (116,349 input tokens at $0.042/MTok; output is free). That's under half a cent for the whole batch.
