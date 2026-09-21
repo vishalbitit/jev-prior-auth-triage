@@ -1,0 +1,3 @@
+typesafe-sdk
+python-dotenv
+pandas
